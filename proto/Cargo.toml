@@ -1,0 +1,11 @@
+[package]
+name = "mei-proto"
+edition = "2024"
+version = "0.1.0"
+
+
+[dependencies]
+prost.workspace = true
+
+[build-dependencies]
+prost-build = "0.14.1"

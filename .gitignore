@@ -1,0 +1,3 @@
+proto/proto/*
+/target
+core/src/meta.rs

@@ -1,0 +1,16 @@
+[package]
+name = "mei-core"
+edition = "2024"
+version = "0.1.0"
+
+[dependencies]
+anyhow.workspace = true
+mei-proto.workspace = true
+reqwest.workspace = true
+semver.workspace = true
+serde_json.workspace = true
+rayon.workspace = true
+tokio.workspace = true
+zstd.workspace = true
+md5.workspace = true
+prost.workspace = true
