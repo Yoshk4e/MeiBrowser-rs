@@ -20,7 +20,7 @@ zstd = "0.13.0"
 rayon = "1.8.0" # for parallel downloads
 semver = "1.0.22" # for version parsing
 mei-proto = { path = "proto" }
-mei-core = { path = "core"}
+mei-browser = { path = "core"}
 
 [profile.release]
 strip = true      # Automatically strip symbols from the binary.

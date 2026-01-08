@@ -564,10 +564,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae960838283323069879657ca3de837e9f7bbb4c7bf6ea7f1b290d5e9476d2e0"
 
 [[package]]
-name = "mei-core"
+name = "mei-browser"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "futures-util",
  "md5",
  "mei-proto",
  "prost 0.12.6",
