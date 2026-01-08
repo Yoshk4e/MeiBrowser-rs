@@ -1,5 +1,5 @@
 use anyhow::Result;
-use mei_core::{DispatchClient, Downloader, FileTree, SophonClient, format_size};
+use mei_browser::{DispatchClient, Downloader, FileTree, SophonClient, format_size};
 use mei_proto::*;
 use std::fs;
 use std::io::{self, Write};
@@ -80,7 +80,7 @@ async fn run_stoken_mode() -> Result<()> {
         }
     }
 
-    print!("\nSelect package (1-{}): ", manifests.len());
+    print!("Select package (1-{}): ", manifests.len());
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
@@ -119,7 +119,8 @@ async fn run_sophon_mode() -> Result<()> {
     for (i, (_, name)) in games.iter().enumerate() {
         println!("{}. {}", i + 1, name);
     }
-    print!("\nEnter choice (1-{}): ", games.len());
+    print!("Enter choice (1-{}): ", games.len());
+    io::stdout().flush()?;
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
@@ -132,7 +133,8 @@ async fn run_sophon_mode() -> Result<()> {
     println!("\nSelect region:");
     println!("1. Global (OS)");
     println!("2. China (CN)");
-    print!("\nEnter choice (1-2): ");
+    print!("Enter choice (1-2): ");
+    io::stdout().flush()?;
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
@@ -170,9 +172,11 @@ async fn run_sophon_mode() -> Result<()> {
     }
 
     print!(
-        "\nEnter version (or press Enter for latest {}): ",
+        "Enter version (or press Enter for latest {}): ",
         latest_version
     );
+
+    io::stdout().flush()?;
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
@@ -218,7 +222,8 @@ async fn run_sophon_mode() -> Result<()> {
         }
     }
 
-    print!("\nSelect package (1-{}): ", manifests.len());
+    print!("Select package (1-{}): ", manifests.len());
+    io::stdout().flush()?;
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
@@ -231,6 +236,7 @@ async fn run_sophon_mode() -> Result<()> {
     println!("\nDifferential Update Mode");
     println!("Calculate what changed between versions.");
     print!("Enable diff comparison? (y/N): ");
+    io::stdout().flush()?;
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
@@ -376,7 +382,7 @@ async fn proceed_with_download(
 
             println!("\nNote: Chunk-level diff is for statistics only.");
             println!("You will still download complete files that have changes.");
-            print!("\nProceed to download? (y/N): ");
+            print!("Proceed to download? (y/N): ");
             io::stdout().flush()?;
 
             let mut input = String::new();
@@ -446,7 +452,7 @@ async fn proceed_with_download(
     println!("\nDownload options:");
     println!("1. Download all files");
     println!("2. Browse and select specific folders/files");
-    print!("\nEnter choice (1-2): ");
+    print!("Enter choice (1-2): ");
     io::stdout().flush()?;
 
     let mut input = String::new();
@@ -481,7 +487,7 @@ async fn proceed_with_download(
     println!("Size: {}", format_size(download_size as u64));
     println!("Save to: {}", save_path);
 
-    print!("\nStart download? (y/N): ");
+    print!("Start download? (y/N): ");
     io::stdout().flush()?;
 
     let mut input = String::new();
@@ -571,7 +577,7 @@ fn select_files_interactive(
         println!("• Enter number to navigate/select");
         println!("• Type 'all' to select all in current folder");
         println!("• Type 'done' to finish selection");
-        print!("\nChoice: ");
+        print!("Choice: ");
         io::stdout().flush()?;
 
         let mut input = String::new();
@@ -639,6 +645,7 @@ async fn run_dispatch_mode() -> Result<()> {
         println!("{}. {}", i + 1, name);
     }
     print!("\nEnter choice (1-{}): ", games.len());
+    io::stdout().flush()?;
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
@@ -665,9 +672,10 @@ async fn run_dispatch_mode() -> Result<()> {
     }
 
     print!(
-        "\nEnter version number (1-{}) or version string: ",
+        "Enter version number (1-{}) or version string: ",
         versions.len()
     );
+    io::stdout().flush()?;
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
@@ -701,7 +709,8 @@ async fn run_dispatch_mode() -> Result<()> {
         println!("{}. {}", i + 1, description);
     }
 
-    print!("\nSelect package (1-{}): ", packages.len());
+    print!("Select package (1-{}): ", packages.len());
+    io::stdout().flush()?;
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
@@ -715,6 +724,7 @@ async fn run_dispatch_mode() -> Result<()> {
 
     if manifest.assets.is_empty() {
         println!("\nNo files found for this package.");
+        return Ok(());
     }
 
     proceed_with_download(manifest, download_url, &version, None, None).await

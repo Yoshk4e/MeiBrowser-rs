@@ -1,5 +1,5 @@
 [package]
-name = "mei-core"
+name = "mei-browser"
 edition = "2024"
 version = "0.1.0"
 
@@ -14,3 +14,4 @@ tokio.workspace = true
 zstd.workspace = true
 md5.workspace = true
 prost.workspace = true
+futures-util = "0.3.31"

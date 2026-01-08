@@ -32,14 +32,13 @@ impl DispatchClient {
 
         let mut versions: Vec<String> = hashes.keys().map(|k| k.clone()).collect();
 
-        // Filter out problematic versions (mihoyo accident in their servers)
         if game == "hk4e" {
             versions.retain(|v| v != "3.2" && v != "3.4");
-            println!("ℹ️  Note: Versions 3.2 and 3.4 excluded (server issues)");
+            println!("Note: Versions 3.2 and 3.4 excluded (servers incident)");
         }
         if game == "hkrpg" {
             versions.retain(|v| v != "1.0");
-            println!("ℹ️  Note: Version 1.0 excluded (no files available)");
+            println!("Note: Version 1.0 excluded (no files available)");
         }
 
         versions.sort_by(|a, b| {
@@ -215,24 +214,38 @@ impl DispatchClient {
                 break;
             }
 
-            let size = request.content_length().unwrap_or(0);
+            // Try content_length() first
+            let mut size = request.content_length().unwrap_or(0);
+
+            // If that fails, manually parse Content-Length header
+            if size == 0 {
+                size = request
+                    .headers()
+                    .get("content-length")
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(0);
+            }
 
             // HSR can return ">.<" with status 200 which means not found
             if size == 3 {
                 break;
             }
 
-            println!("Found part {} ({})", i, crate::utils::format_size(size));
+            // Only add asset if we got a valid size
+            if size > 0 {
+                println!("Found part {} ({})", i, crate::utils::format_size(size));
 
-            let filename = url.split('/').last().unwrap_or("").to_string();
-            let asset = SophonManifestAssetProperty {
-                asset_name: filename,
-                asset_hash_md5: String::new(),
-                asset_size: size as i64,
-                asset_chunks: Vec::new(),
-                asset_type: 0,
-            };
-            manifest.assets.push(asset);
+                let filename = url.split('/').last().unwrap_or("").to_string();
+                let asset = SophonManifestAssetProperty {
+                    asset_name: filename,
+                    asset_hash_md5: String::new(),
+                    asset_size: size as i64,
+                    asset_chunks: Vec::new(),
+                    asset_type: 0,
+                };
+                manifest.assets.push(asset);
+            }
 
             if !is_multipart {
                 break;
@@ -321,7 +334,16 @@ impl DispatchClient {
         let mut manifest = SophonManifestProto { assets: Vec::new() };
 
         if request.status().is_success() {
-            let size = request.content_length().unwrap_or(0);
+            let mut size = request.content_length().unwrap_or(0);
+
+            if size == 0 {
+                size = request
+                    .headers()
+                    .get("content-length")
+                    .and_then(|h| h.to_str().ok())
+                    .and_then(|s| s.parse::<u64>().ok())
+                    .unwrap_or(0);
+            }
 
             if size > 3 {
                 let filename = url_base.split('/').last().unwrap_or("").to_string();

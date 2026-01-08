@@ -1,7 +1,7 @@
 use crate::utils::get_md5;
 use anyhow::Result;
+use futures_util::stream::StreamExt;
 use mei_proto::SophonManifestAssetProperty;
-use rayon::prelude::*;
 use reqwest::Client;
 use std::fs::{self, File};
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
@@ -31,24 +31,19 @@ impl Downloader {
 
         let _total_size: i64 = assets.iter().map(|a| a.asset_size).sum();
         let downloaded = Arc::new(Mutex::new(0u64));
-
-        let download_url = download_url.to_string();
-        let save_path = save_path.to_string();
         let progress_callback = Arc::new(progress_callback);
-
         let failed: Arc<Mutex<Vec<SophonManifestAssetProperty>>> = Arc::new(Mutex::new(Vec::new()));
 
-        assets.par_iter().for_each(|asset| {
+        for asset in &assets {
             let mut retries = 3;
             let mut ok = false;
 
-            let dl = downloaded.clone();
-            let fail = failed.clone();
-            let cb = progress_callback.clone();
-
             while retries > 0 && !ok {
-                let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
-                    self.try_download_file(asset, &download_url, &save_path, |size| {
+                let dl = downloaded.clone();
+                let cb = progress_callback.clone();
+
+                match self
+                    .try_download_file(asset, download_url, save_path, |size| {
                         let mut d = dl.lock().unwrap();
                         *d += size;
                         if let Some(ref callback) = *cb {
@@ -56,37 +51,48 @@ impl Downloader {
                         }
                     })
                     .await
-                });
-
-                ok = result.is_ok() && {
-                    let file_path = Path::new(&save_path)
-                        .join(asset.asset_name.replace('/', std::path::MAIN_SEPARATOR_STR));
-                    if let Ok(data) = std::fs::read(&file_path) {
-                        get_md5(&data) == asset.asset_hash_md5
-                    } else {
-                        false
+                {
+                    Ok(_) => {
+                        // Verify hash
+                        let file_path = Path::new(save_path)
+                            .join(asset.asset_name.replace('/', std::path::MAIN_SEPARATOR_STR));
+                        if let Ok(data) = std::fs::read(&file_path) {
+                            if get_md5(&data) == asset.asset_hash_md5 {
+                                ok = true;
+                            } else {
+                                println!("MD5 mismatch for {}, retrying...", asset.asset_name);
+                            }
+                        } else {
+                            println!("Failed to read file for verification: {}", asset.asset_name);
+                        }
                     }
-                };
+                    Err(e) => {
+                        println!(
+                            "Download failed for {}: {}, retrying...",
+                            asset.asset_name, e
+                        );
+                    }
+                }
 
                 if !ok {
                     retries -= 1;
-                    println!("Retry {}/3 for {}", 3 - retries, asset.asset_name);
-                    std::thread::sleep(std::time::Duration::from_secs(2));
+                    if retries > 0 {
+                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                    }
                 }
             }
 
             if !ok {
-                fail.lock().unwrap().push(asset.clone());
+                failed.lock().unwrap().push(asset.clone());
             }
-        });
+        }
 
-        let failed_assets = failed.lock().unwrap();
-        if failed_assets.len() > 0 {
-            println!("Rechecking failed files..");
-            drop(failed_assets);
+        // Recheck failed files
+        let failed_assets = failed.lock().unwrap().clone();
+        if !failed_assets.is_empty() {
+            println!("Rechecking {} failed files..", failed_assets.len());
 
-            let failed_vec = failed.lock().unwrap().clone();
-            for asset in &failed_vec {
+            for asset in &failed_assets {
                 let mut retries = 3;
                 let mut ok = false;
 
@@ -94,21 +100,28 @@ impl Downloader {
                     let dl = downloaded.clone();
                     let cb = progress_callback.clone();
 
-                    let result = self
-                        .try_download_file(asset, &download_url, &save_path, |size| {
+                    match self
+                        .try_download_file(asset, download_url, save_path, |size| {
                             let mut d = dl.lock().unwrap();
                             *d += size;
                             if let Some(ref callback) = *cb {
                                 callback(*d);
                             }
                         })
-                        .await;
-
-                    ok = result.is_ok();
-                    if !ok {
-                        retries -= 1;
-                        println!("Final retry {}/3 for {}", 3 - retries, asset.asset_name);
-                        tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                        .await
+                    {
+                        Ok(_) => {
+                            let file_path = Path::new(save_path)
+                                .join(asset.asset_name.replace('/', std::path::MAIN_SEPARATOR_STR));
+                            if let Ok(data) = std::fs::read(&file_path) {
+                                if get_md5(&data) == asset.asset_hash_md5 {
+                                    ok = true;
+                                }
+                            }
+                        }
+                        Err(_) => {
+                            retries -= 1;
+                        }
                     }
                 }
             }
@@ -118,7 +131,7 @@ impl Downloader {
         let broken: Vec<_> = assets
             .iter()
             .filter(|a| {
-                let file_path = Path::new(&save_path)
+                let file_path = Path::new(save_path)
                     .join(a.asset_name.replace('/', std::path::MAIN_SEPARATOR_STR));
                 if let Ok(data) = std::fs::read(&file_path) {
                     get_md5(&data) != a.asset_hash_md5
@@ -129,15 +142,16 @@ impl Downloader {
             .cloned()
             .collect();
 
-        if broken.len() > 0 {
+        if !broken.is_empty() {
             println!("Redownloading {} broken files..", broken.len());
-            Box::pin(self.download_files(broken, &download_url, &save_path, None)).await?;
+            Box::pin(self.download_files(broken, download_url, save_path, None)).await?;
         }
 
+        println!("Download complete!");
         Ok(())
     }
 
-    async fn try_download_file<F>(
+    pub async fn try_download_file<F>(
         &self,
         asset: &SophonManifestAssetProperty,
         download_url: &str,
@@ -176,14 +190,29 @@ impl Downloader {
             }
 
             println!("Downloading from {}", url);
-            let response = self.client.get(&url).send().await?;
-            let bytes = response.bytes().await?;
 
+            let response = self.client.get(&url).send().await?;
+            let total_size = response.content_length().unwrap_or(0);
+
+            let mut stream = response.bytes_stream();
             let mut file = File::create(&file_path)?;
-            file.write_all(&bytes)?;
-            on_chunk_done(bytes.len() as u64);
+            let mut downloaded = 0u64;
+
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk?;
+                file.write_all(&chunk)?;
+                downloaded += chunk.len() as u64;
+                on_chunk_done(chunk.len() as u64);
+            }
+
+            if total_size > 0 && downloaded != total_size {
+                return Err(anyhow::anyhow!(
+                    "Download incomplete: {}/{} bytes",
+                    downloaded,
+                    total_size
+                ));
+            }
         } else {
-            // sophon mode
             let mut file = File::options()
                 .read(true)
                 .write(true)
