@@ -109,36 +109,31 @@ impl SophonClient {
         custom_data: Option<&str>,
     ) -> Result<(SophonManifestProto, String)> {
         let build_json: Value;
-        let mut actual_category_id: Option<String> = None;
 
         if let Some(data) = custom_data {
             build_json = serde_json::from_str(data)?;
-            let matching_field = "game"; // this is hardcoded because beta builds doesn't include audio
 
             let manifests = build_json["data"]["manifests"]
                 .as_array()
                 .context("No manifests in custom data")?;
 
-            for manifest in manifests {
-                if manifest["matching_field"].as_str() == Some(matching_field) {
-                    actual_category_id = Some(
-                        manifest["category_id"]
-                            .as_str()
-                            .context("No category_id")?
-                            .to_string(),
-                    );
-                    break;
-                }
-            }
-            if actual_category_id.is_none() {
-                anyhow::bail!("Could not find matching manifest");
-            }
+            let selected_manifest = manifests
+                .iter()
+                .find(|m| m["category_id"].as_str() == Some(category_id))
+                .context(format!(
+                    "Could not find manifest with category_id: {}",
+                    category_id
+                ))?;
+
+            let category_name = selected_manifest["category_name"]
+                .as_str()
+                .unwrap_or("Unknown");
+            println!(
+                "Using custom manifest: {} (category_id: {})",
+                category_name, category_id
+            );
         } else {
-            actual_category_id = Some(category_id.to_string());
-
             if game != "custom" {
-                let meta_json = self.get_game_branches(game, region).await?;
-
                 let mut version_str = version.to_string();
                 let mut pre_download = false;
 
@@ -151,6 +146,7 @@ impl SophonClient {
                     pre_download = true;
                 }
 
+                let meta_json = self.get_game_branches(game, region).await?;
                 let branch_name = if pre_download { "pre_download" } else { "main" };
                 let game_meta = &meta_json["data"]["game_branches"][0][branch_name];
 
@@ -172,10 +168,8 @@ impl SophonClient {
 
         let manifest_info = manifests
             .iter()
-            .find(|m| {
-                m.get("category_id").and_then(|v| v.as_str()) == actual_category_id.as_deref()
-            })
-            .ok_or_else(|| anyhow::anyhow!("Category not found"))?;
+            .find(|m| m.get("category_id").and_then(|v| v.as_str()) == Some(category_id))
+            .ok_or_else(|| anyhow::anyhow!("Category {} not found", category_id))?;
 
         let url_prefix = manifest_info["chunk_download"]["url_prefix"]
             .as_str()
