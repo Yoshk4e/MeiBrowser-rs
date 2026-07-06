@@ -1,0 +1,69 @@
+import { Palette } from "../theme.slint";
+import { AppState, Backend } from "../state.slint";
+import { IconCheck } from "../icons.slint";
+import { SecondaryButton, PrimaryButton } from "../components/buttons.slint";
+
+export component DonePage inherits Rectangle {
+    property <float> anim: root.visible ? 1.0 : 0.0;
+
+    VerticalLayout {
+        alignment: center;
+        spacing: 18px;
+
+        Rectangle {
+            width: 90px;
+            height: 90px;
+            border-radius: 45px;
+            background: Palette.accent;
+            horizontal-stretch: 0;
+            x: (parent.width - self.width) / 2;
+            transform-scale: root.anim;
+            animate transform-scale {
+                duration: 350ms;
+                easing: ease-out;
+            }
+
+            IconCheck {
+                size: 40px;
+                color: Palette.on-accent;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+        }
+
+        Text {
+            text: "Download complete!";
+            font-size: 22px;
+            font-weight: 800;
+            color: Palette.text-primary;
+            horizontal-alignment: center;
+        }
+
+        Text {
+            text: "Saved to " + AppState.save-path;
+            font-size: 13px;
+            color: Palette.text-muted;
+            horizontal-alignment: center;
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            spacing: 12px;
+            SecondaryButton {
+                width: 160px;
+                text: "Download more";
+                clicked => {
+                    Backend.download-more();
+                }
+            }
+
+            PrimaryButton {
+                width: 120px;
+                text: "Exit";
+                clicked => {
+                    Backend.quit();
+                }
+            }
+        }
+    }
+}

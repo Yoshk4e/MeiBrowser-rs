@@ -1,0 +1,80 @@
+import { Palette } from "theme.slint";
+import { AppState, Backend } from "state.slint";
+import { TopBar } from "components/topbar.slint";
+import { HomePage } from "pages/home.slint";
+import { ConfigPage } from "pages/config.slint";
+import { PackagesPage } from "pages/packages.slint";
+import { FileBrowserPage } from "pages/files.slint";
+import { SummaryPage } from "pages/summary.slint";
+import { ProgressPage } from "pages/downloading.slint";
+import { DonePage } from "pages/done.slint";
+
+export { GameOption, PackageOption, FileEntry } from "types.slint";
+export { AppState, Backend } from "state.slint";
+export { Palette } from "theme.slint";
+
+export component MainWindow inherits Window {
+    title: "MeiBrowser";
+    width: 760px;
+    height: 620px;
+    background: Palette.bg;
+    animate background {
+        duration: 320ms;
+        easing: ease-out;
+    }
+
+    property <string> page-title: AppState.page == 0 ? "MeiBrowser" : AppState.page == 1 ? (AppState.mode == "sophon" ? "Sophon Mode" : AppState.mode == "legacy" ? "Legacy Mode" : "SToken Build") : AppState.page == 2 ? "Packages" : AppState.page == 3 ? "File Browser" : AppState.page == 4 ? "Summary" : AppState.page == 5 ? "Downloading" : "Done";
+
+    VerticalLayout {
+        if AppState.page != 0: TopBar {
+            title: root.page-title;
+            show-back: AppState.page != 5 && AppState.page != 6;
+            back => {
+                Backend.go-back();
+            }
+        }
+
+        Rectangle {
+            vertical-stretch: 1;
+            clip: true;
+
+            for idx in 7: Rectangle {
+                property <bool> active: AppState.page == idx;
+                opacity: active ? 1.0 : 0.0;
+                x: active ? 0px : (idx < AppState.previous-page ? -24px : 24px);
+                animate opacity {
+                    duration: 200ms;
+                    easing: ease-out;
+                }
+                animate x {
+                    duration: 220ms;
+                    easing: ease-out;
+                }
+                visible: active;
+
+                if idx == 0: HomePage { }
+                if idx == 1: ConfigPage { }
+                if idx == 2: PackagesPage { }
+                if idx == 3: FileBrowserPage { }
+                if idx == 4: SummaryPage { }
+                if idx == 5: ProgressPage { }
+                if idx == 6: DonePage { }
+            }
+        }
+
+        if AppState.is-loading: Rectangle {
+            height: 34px;
+            background: Palette.surface;
+            HorizontalLayout {
+                alignment: center;
+                spacing: 8px;
+                Text {
+                    text: AppState.loading-text;
+                    color: Palette.text-muted;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                }
+            }
+        }
+    }
+}

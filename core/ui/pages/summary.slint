@@ -1,0 +1,106 @@
+import { LineEdit } from "std-widgets.slint";
+import { Palette } from "../theme.slint";
+import { AppState, Backend } from "../state.slint";
+import { SecondaryButton, PrimaryButton } from "../components/buttons.slint";
+
+export component SummaryPage inherits Rectangle {
+    VerticalLayout {
+        padding: 28px;
+        spacing: 18px;
+
+        Text {
+            text: "Ready to download";
+            font-size: 20px;
+            font-weight: 800;
+            color: Palette.text-primary;
+        }
+
+        Rectangle {
+            height: 120px;
+            border-radius: Palette.radius-lg;
+            background: Palette.surface;
+            border-width: 1px;
+            border-color: Palette.border;
+
+            HorizontalLayout {
+                padding: 20px;
+                spacing: 40px;
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    Text {
+                        text: "Files";
+                        color: Palette.text-muted;
+                        font-size: 11px;
+                    }
+
+                    Text {
+                        text: AppState.summary-file-count;
+                        color: Palette.text-primary;
+                        font-size: 22px;
+                        font-weight: 800;
+                    }
+                }
+
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    Text {
+                        text: "Total size";
+                        color: Palette.text-muted;
+                        font-size: 11px;
+                    }
+
+                    Text {
+                        text: AppState.summary-size-text;
+                        color: Palette.text-primary;
+                        font-size: 22px;
+                        font-weight: 800;
+                    }
+                }
+            }
+        }
+
+        Text {
+            text: "Save to";
+            font-size: 13px;
+            font-weight: 700;
+            color: Palette.text-secondary;
+        }
+
+        HorizontalLayout {
+            spacing: 10px;
+            LineEdit {
+                width: 320px;
+                text: AppState.save-path;
+                edited(text) => {
+                    Backend.set-save-path(text);
+                }
+            }
+
+            SecondaryButton {
+                width: 100px;
+                icon: "folder";
+                text: "Browse";
+                enabled: !AppState.is-loading;
+                clicked => {
+                    Backend.browse-save-path();
+                }
+            }
+        }
+
+        Rectangle { }
+
+        HorizontalLayout {
+            alignment: end;
+            PrimaryButton {
+                width: 200px;
+                text: "Start Download";
+                enabled: !AppState.is-loading && !AppState.is-downloading;
+                clicked => {
+                    Backend.start-download();
+                }
+            }
+        }
+    }
+}

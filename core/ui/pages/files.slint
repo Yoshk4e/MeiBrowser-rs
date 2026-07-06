@@ -1,0 +1,96 @@
+import { ScrollView } from "std-widgets.slint";
+import { Palette } from "../theme.slint";
+import { AppState, Backend } from "../state.slint";
+import { FileRow } from "../components/cards.slint";
+import { SecondaryButton, PrimaryButton } from "../components/buttons.slint";
+
+export component FileBrowserPage inherits Rectangle {
+    VerticalLayout {
+        padding: 28px;
+        spacing: 14px;
+
+        Text {
+            text: "Select files";
+            font-size: 20px;
+            font-weight: 800;
+            color: Palette.text-primary;
+        }
+
+        HorizontalLayout {
+            spacing: 10px;
+            if AppState.can-go-back: SecondaryButton {
+                width: 90px;
+                text: "← Back";
+                clicked => {
+                    Backend.navigate-back-folder();
+                }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                Text {
+                    text: AppState.current-path-display;
+                    color: Palette.text-muted;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                }
+            }
+
+            SecondaryButton {
+                width: 130px;
+                text: "Select all here";
+                clicked => {
+                    Backend.select-all-in-folder();
+                }
+            }
+        }
+
+        ScrollView {
+            height: 260px;
+            VerticalLayout {
+                spacing: 2px;
+                for entry in AppState.file-entries: FileRow {
+                    name: entry.name;
+                    size-text: entry.size-text;
+                    count-text: entry.count-text;
+                    is-file: entry.is-file;
+                    selected: entry.selected;
+                    row-clicked => {
+                        if (entry.is-file) {
+                            Backend.toggle-select(entry.path);
+                        } else {
+                            Backend.navigate-into(entry.path);
+                        }
+                    }
+                    check-clicked => {
+                        Backend.toggle-select(entry.path);
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            height: 1px;
+            background: Palette.border;
+        }
+
+        HorizontalLayout {
+            spacing: 16px;
+            Text {
+                text: AppState.selected-file-count + " files selected  •  " + AppState.selected-size-text;
+                color: Palette.text-secondary;
+                font-size: 13px;
+                vertical-alignment: center;
+                horizontal-stretch: 1;
+            }
+
+            PrimaryButton {
+                width: 180px;
+                text: "Continue";
+                enabled: AppState.selected-file-count > 0 && !AppState.is-loading;
+                clicked => {
+                    Backend.finish-selection();
+                }
+            }
+        }
+    }
+}

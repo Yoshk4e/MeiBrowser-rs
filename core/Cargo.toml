@@ -1,17 +1,31 @@
 [package]
 name = "mei-browser"
-edition = "2024"
 version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "mei-browser"
+path = "src/main.rs"
+
+[[bin]]
+name = "mei-browser-gui"
+path = "src/bin/gui.rs"
 
 [dependencies]
 anyhow.workspace = true
+futures-util = "0.3.31"
+image.workspace = true
+md5.workspace = true
 mei-proto.workspace = true
+prost.workspace = true
+rayon.workspace = true
 reqwest.workspace = true
+rfd.workspace = true
 semver.workspace = true
 serde_json.workspace = true
-rayon.workspace = true
+slint.workspace = true
 tokio.workspace = true
 zstd.workspace = true
-md5.workspace = true
-prost.workspace = true
-futures-util = "0.3.31"
+
+[build-dependencies]
+slint-build = "1.17.0"

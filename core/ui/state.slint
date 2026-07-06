@@ -1,0 +1,84 @@
+import { GameOption, PackageOption, FileEntry } from "types.slint";
+
+export global AppState {
+    // navigation: 0 home, 1 config, 2 packages, 3 files, 4 summary, 5 progress, 6 done
+    in-out property <int> page: 0;
+    in-out property <int> previous-page: 0;
+
+    in-out property <string> mode: "sophon"; // "sophon" | "legacy" | "stoken"
+
+    // config page
+    in-out property <[GameOption]> games: [];
+    in-out property <int> selected-game: -1;
+    in-out property <string> region: "OS"; // "OS" | "CN"
+    in-out property <string> version-input: "";
+    in-out property <string> latest-version: "";
+    in-out property <bool> has-pre-download: false;
+    in-out property <bool> pre-download-selected: false;
+    in-out property <string> stoken-path: "";
+
+    // packages page
+    in-out property <[PackageOption]> packages: [];
+    in-out property <int> selected-package: -1;
+    in-out property <bool> diff-enabled: false;
+    in-out property <string> previous-version: "";
+
+    // file browser page
+    in-out property <string> current-path-display: "/";
+    in-out property <bool> can-go-back: false;
+    in-out property <[FileEntry]> file-entries: [];
+    in-out property <int> selected-file-count: 0;
+    in-out property <string> selected-size-text: "0 B";
+
+    // summary / download page
+    in-out property <string> save-path: "./download";
+    in-out property <string> summary-file-count: "0";
+    in-out property <string> summary-size-text: "0 B";
+
+    in-out property <float> progress: 0.0; // 0..1
+    in-out property <string> downloaded-text: "0 B";
+    in-out property <string> total-text: "0 B";
+    in-out property <string> speed-text: "";
+    in-out property <bool> is-downloading: false;
+    in-out property <bool> download-complete: false;
+
+    in-out property <bool> is-loading: false;
+    in-out property <string> loading-text: "Loading...";
+    in-out property <string> error-text: "";
+    in-out property <string> status-text: "";
+}
+
+export global Backend {
+    // navigation
+    callback go-home();
+    callback go-back();
+
+    // mode + config
+    callback select-mode(string);
+    callback select-game(int);
+    callback select-region(string);
+    callback fetch-versions();
+    callback browse-stoken-file();
+    callback load-stoken-file(string);
+
+    // packages
+    callback select-package(int);
+    callback toggle-diff(bool);
+    callback set-previous-version(string);
+    callback confirm-package();
+
+    // file browser
+    callback navigate-into(string);
+    callback navigate-back-folder();
+    callback toggle-select(string);
+    callback select-all-in-folder();
+    callback finish-selection();
+
+    // summary + download
+    callback browse-save-path();
+    callback set-save-path(string);
+    callback start-download();
+    callback cancel-download();
+    callback download-more();
+    callback quit();
+}

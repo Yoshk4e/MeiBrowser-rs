@@ -1,0 +1,161 @@
+import { LineEdit } from "std-widgets.slint";
+import { Palette } from "../theme.slint";
+import { AppState, Backend } from "../state.slint";
+import { GameTile } from "../components/cards.slint";
+import { SegmentedToggle, Toggle } from "../components/inputs.slint";
+import { SecondaryButton, PrimaryButton } from "../components/buttons.slint";
+
+export component ConfigPage inherits Rectangle {
+    VerticalLayout {
+        padding: 28px;
+        spacing: 18px;
+
+        if AppState.mode == "sophon" || AppState.mode == "legacy": VerticalLayout {
+            spacing: 18px;
+
+            Text {
+                text: "Select game";
+                font-size: 14px;
+                font-weight: 700;
+                color: Palette.text-secondary;
+            }
+
+            HorizontalLayout {
+                spacing: 12px;
+                alignment: start;
+                for game[i] in AppState.games: GameTile {
+                    tag: game.tag;
+                    name: game.name;
+                    selected: AppState.selected-game == i;
+                    clicked => {
+                        Backend.select-game(i);
+                    }
+                }
+            }
+
+            if AppState.mode == "sophon": VerticalLayout {
+                spacing: 10px;
+                Text {
+                    text: "Region";
+                    font-size: 14px;
+                    font-weight: 700;
+                    color: Palette.text-secondary;
+                }
+
+                SegmentedToggle {
+                    width: 240px;
+                    left-label: "Global (OS)";
+                    right-label: "China (CN)";
+                    right-selected: AppState.region == "CN";
+                    select-left => {
+                        Backend.select-region("OS");
+                    }
+                    select-right => {
+                        Backend.select-region("CN");
+                    }
+                }
+            }
+
+            Text {
+                text: "Version";
+                font-size: 14px;
+                font-weight: 700;
+                color: Palette.text-secondary;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                LineEdit {
+                    width: 200px;
+                    placeholder-text: AppState.latest-version != "" ? "Latest: " + AppState.latest-version : "e.g. 6.2";
+                    text: AppState.version-input;
+                    edited(text) => {
+                        AppState.version-input = text;
+                    }
+                }
+
+                SecondaryButton {
+                    width: 160px;
+                    text: AppState.is-loading ? "Fetching..." : "Fetch Packages";
+                    enabled: !AppState.is-loading;
+                    clicked => {
+                        Backend.fetch-versions();
+                    }
+                }
+            }
+
+            if AppState.has-pre-download: HorizontalLayout {
+                spacing: 10px;
+                Toggle {
+                    checked: AppState.pre-download-selected;
+                    toggled(v) => {
+                        AppState.pre-download-selected = v;
+                    }
+                }
+
+                Text {
+                    text: "Use pre-download build";
+                    color: Palette.text-secondary;
+                    font-size: 13px;
+                    vertical-alignment: center;
+                }
+            }
+        }
+
+        if AppState.mode == "stoken": VerticalLayout {
+            spacing: 14px;
+            Text {
+                text: "SToken build file";
+                font-size: 14px;
+                font-weight: 700;
+                color: Palette.text-secondary;
+            }
+
+            Text {
+                text: "Point to a getBuildWithStoken.json file to load custom or pre-release build data.";
+                font-size: 12px;
+                color: Palette.text-muted;
+                wrap: word-wrap;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                LineEdit {
+                    width: 340px;
+                    placeholder-text: "./getBuildWithStoken.json";
+                    text: AppState.stoken-path;
+                    edited(text) => {
+                        AppState.stoken-path = text;
+                    }
+                }
+
+                SecondaryButton {
+                    width: 100px;
+                    icon: "folder";
+                    text: "Browse";
+                    enabled: !AppState.is-loading;
+                    clicked => {
+                        Backend.browse-stoken-file();
+                    }
+                }
+
+                PrimaryButton {
+                    width: 100px;
+                    text: "Load";
+                    enabled: AppState.stoken-path != "" && !AppState.is-loading;
+                    clicked => {
+                        Backend.load-stoken-file(AppState.stoken-path);
+                    }
+                }
+            }
+        }
+
+        if AppState.error-text != "": Text {
+            text: AppState.error-text;
+            color: Palette.danger-text;
+            font-size: 12px;
+        }
+
+        Rectangle { }
+    }
+}

@@ -1,0 +1,99 @@
+import { Palette } from "../theme.slint";
+
+export component Toggle inherits Rectangle {
+    in-out property <bool> checked: false;
+    callback toggled(bool);
+
+    width: 44px;
+    height: 24px;
+    border-radius: 12px;
+    background: checked ? Palette.accent : #2a2f3a;
+    animate background {
+        duration: 150ms;
+        easing: ease-out;
+    }
+
+    Rectangle {
+        x: checked ? parent.width - self.width - 3px : 3px;
+        y: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 9px;
+        background: white;
+        animate x {
+            duration: 150ms;
+            easing: ease-out;
+        }
+    }
+
+    TouchArea {
+        clicked => {
+            root.checked = !root.checked;
+            root.toggled(root.checked);
+        }
+    }
+}
+
+export component SegmentedToggle inherits Rectangle {
+    in property <string> left-label;
+    in property <string> right-label;
+    in property <bool> right-selected;
+    callback select-left();
+    callback select-right();
+
+    height: 40px;
+    border-radius: Palette.radius-md;
+    background: Palette.surface;
+    border-width: 1px;
+    border-color: Palette.border;
+
+    Rectangle {
+        x: root.right-selected ? parent.width / 2 : 0px;
+        width: parent.width / 2;
+        height: parent.height;
+        border-radius: Palette.radius-md - 1px;
+        background: Palette.accent;
+        animate x {
+            duration: 180ms;
+            easing: ease-out;
+        }
+    }
+
+    HorizontalLayout {
+        Rectangle {
+            TouchArea {
+                clicked => {
+                    root.select-left();
+                }
+            }
+
+            Text {
+                text: root.left-label;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-weight: 700;
+                font-size: 13px;
+                color: root.right-selected ? Palette.text-secondary : Palette.on-accent;
+                animate color { duration: 150ms; }
+            }
+        }
+
+        Rectangle {
+            TouchArea {
+                clicked => {
+                    root.select-right();
+                }
+            }
+
+            Text {
+                text: root.right-label;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                font-weight: 700;
+                font-size: 13px;
+                color: root.right-selected ? Palette.on-accent : Palette.text-secondary;
+                animate color { duration: 150ms; }
+            }
+        }
+    }
+}

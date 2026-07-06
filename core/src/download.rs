@@ -9,6 +9,8 @@ use std::path::Path;
 use std::sync::{Arc, Mutex};
 use zstd::stream::read::Decoder;
 
+const MAX_REDOWNLOAD_DEPTH: u32 = 4;
+
 pub struct Downloader {
     client: Client,
 }
@@ -27,9 +29,20 @@ impl Downloader {
         save_path: &str,
         progress_callback: Option<Box<dyn Fn(u64) + Send + Sync>>,
     ) -> Result<()> {
+        self.download_files_inner(assets, download_url, save_path, progress_callback, 0)
+            .await
+    }
+
+    async fn download_files_inner(
+        &self,
+        assets: Vec<SophonManifestAssetProperty>,
+        download_url: &str,
+        save_path: &str,
+        progress_callback: Option<Box<dyn Fn(u64) + Send + Sync>>,
+        depth: u32,
+    ) -> Result<()> {
         println!("Start download..");
 
-        let _total_size: i64 = assets.iter().map(|a| a.asset_size).sum();
         let downloaded = Arc::new(Mutex::new(0u64));
         let progress_callback = Arc::new(progress_callback);
         let failed: Arc<Mutex<Vec<SophonManifestAssetProperty>>> = Arc::new(Mutex::new(Vec::new()));
@@ -41,17 +54,21 @@ impl Downloader {
             while retries > 0 && !ok {
                 let dl = downloaded.clone();
                 let cb = progress_callback.clone();
+                let committed = *dl.lock().unwrap();
+                let attempt_bytes = Arc::new(Mutex::new(0u64));
+                let attempt_bytes_cb = attempt_bytes.clone();
 
-                match self
-                    .try_download_file(asset, download_url, save_path, |size| {
-                        let mut d = dl.lock().unwrap();
-                        *d += size;
+                let outcome = self
+                    .try_download_file(asset, download_url, save_path, move |size| {
+                        let mut a = attempt_bytes_cb.lock().unwrap();
+                        *a += size;
                         if let Some(ref callback) = *cb {
-                            callback(*d);
+                            callback(committed + *a);
                         }
                     })
-                    .await
-                {
+                    .await;
+
+                match outcome {
                     Ok(_) => {
                         // Verify hash
                         let file_path = Path::new(save_path)
@@ -59,6 +76,10 @@ impl Downloader {
                         if let Ok(data) = std::fs::read(&file_path) {
                             if get_md5(&data) == asset.asset_hash_md5 {
                                 ok = true;
+                                // Commit this attempt's bytes for real now
+                                // that they're verified.
+                                let attempt_total = *attempt_bytes.lock().unwrap();
+                                *dl.lock().unwrap() = committed + attempt_total;
                             } else {
                                 println!("MD5 mismatch for {}, retrying...", asset.asset_name);
                             }
@@ -99,29 +120,37 @@ impl Downloader {
                 while retries > 0 && !ok {
                     let dl = downloaded.clone();
                     let cb = progress_callback.clone();
+                    let committed = *dl.lock().unwrap();
+                    let attempt_bytes = Arc::new(Mutex::new(0u64));
+                    let attempt_bytes_cb = attempt_bytes.clone();
 
-                    match self
-                        .try_download_file(asset, download_url, save_path, |size| {
-                            let mut d = dl.lock().unwrap();
-                            *d += size;
+                    let outcome = self
+                        .try_download_file(asset, download_url, save_path, move |size| {
+                            let mut a = attempt_bytes_cb.lock().unwrap();
+                            *a += size;
                             if let Some(ref callback) = *cb {
-                                callback(*d);
+                                callback(committed + *a);
                             }
                         })
-                        .await
-                    {
+                        .await;
+
+                    match outcome {
                         Ok(_) => {
                             let file_path = Path::new(save_path)
                                 .join(asset.asset_name.replace('/', std::path::MAIN_SEPARATOR_STR));
                             if let Ok(data) = std::fs::read(&file_path) {
                                 if get_md5(&data) == asset.asset_hash_md5 {
                                     ok = true;
+                                    let attempt_total = *attempt_bytes.lock().unwrap();
+                                    *dl.lock().unwrap() = committed + attempt_total;
                                 }
                             }
                         }
-                        Err(_) => {
-                            retries -= 1;
-                        }
+                        Err(_) => {}
+                    }
+
+                    if !ok {
+                        retries -= 1;
                     }
                 }
             }
@@ -143,8 +172,22 @@ impl Downloader {
             .collect();
 
         if !broken.is_empty() {
+            if depth >= MAX_REDOWNLOAD_DEPTH {
+                anyhow::bail!(
+                    "{} file(s) still don't match their expected hash after {} redownload passes: {}",
+                    broken.len(),
+                    depth,
+                    broken
+                        .iter()
+                        .map(|a| a.asset_name.as_str())
+                        .take(5)
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                );
+            }
             println!("Redownloading {} broken files..", broken.len());
-            Box::pin(self.download_files(broken, download_url, save_path, None)).await?;
+            Box::pin(self.download_files_inner(broken, download_url, save_path, None, depth + 1))
+                .await?;
         }
 
         println!("Download complete!");

@@ -66,8 +66,8 @@ impl SophonClient {
             sophon_data.get("platApp").unwrap()
         );
 
-        if !pre_download {
-            // Ensure version has .0 suffix if needed
+        if !version.is_empty() {
+            // Ensure version has .0 suffix if needed (API expects X.Y.Z form).
             let version_with_patch = if version.split('.').count() == 2 {
                 format!("{}.0", version)
             } else {

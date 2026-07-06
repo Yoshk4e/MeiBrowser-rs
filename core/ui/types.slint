@@ -1,0 +1,20 @@
+export struct GameOption {
+    id: string,
+    name: string,
+    tag: string, // short tag shown on the tile, e.g. "GI" / "HSR" / "ZZZ"
+}
+
+export struct PackageOption {
+    category-id: string,
+    label: string,
+    description: string,
+}
+
+export struct FileEntry {
+    name: string,
+    path: string,
+    is-file: bool,
+    size-text: string,
+    count-text: string,
+    selected: bool,
+}
