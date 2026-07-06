@@ -1,0 +1,93 @@
+import { ScrollView, LineEdit } from "std-widgets.slint";
+import { Palette } from "../theme.slint";
+import { AppState, Backend } from "../state.slint";
+import { PackageRow } from "../components/cards.slint";
+import { Toggle } from "../components/inputs.slint";
+import { PrimaryButton } from "../components/buttons.slint";
+
+export component PackagesPage inherits Rectangle {
+    VerticalLayout {
+        padding: 28px;
+        spacing: 16px;
+
+        Text {
+            text: "Choose a package";
+            font-size: 20px;
+            font-weight: 800;
+            color: Palette.text-primary;
+        }
+
+        ScrollView {
+            height: 260px;
+            VerticalLayout {
+                spacing: 10px;
+                for pkg[i] in AppState.packages: PackageRow {
+                    label: pkg.label;
+                    description: pkg.description;
+                    selected: AppState.selected-package == i;
+                    clicked => {
+                        Backend.select-package(i);
+                    }
+                }
+            }
+        }
+
+        if AppState.mode == "sophon": VerticalLayout {
+            spacing: 12px;
+            Rectangle {
+                height: 1px;
+                background: Palette.border;
+            }
+
+            HorizontalLayout {
+                spacing: 10px;
+                Toggle {
+                    checked: AppState.diff-enabled;
+                    toggled(v) => {
+                        Backend.toggle-diff(v);
+                    }
+                }
+
+                Text {
+                    text: "Enable differential update (only download changed files)";
+                    color: Palette.text-secondary;
+                    font-size: 13px;
+                    vertical-alignment: center;
+                }
+            }
+
+            if AppState.diff-enabled: HorizontalLayout {
+                spacing: 10px;
+                Text {
+                    text: "Previous version:";
+                    color: Palette.text-muted;
+                    font-size: 12px;
+                    vertical-alignment: center;
+                }
+
+                LineEdit {
+                    width: 140px;
+                    placeholder-text: "e.g. 5.8";
+                    text: AppState.previous-version;
+                    edited(text) => {
+                        Backend.set-previous-version(text);
+                    }
+                }
+            }
+        }
+
+        Rectangle { }
+
+        HorizontalLayout {
+            alignment: end;
+            PrimaryButton {
+                width: 180px;
+                text: "Continue";
+                enabled: AppState.selected-package >= 0 && !AppState.is-loading;
+                clicked => {
+                    Backend.confirm-package();
+                }
+            }
+        }
+    }
+}

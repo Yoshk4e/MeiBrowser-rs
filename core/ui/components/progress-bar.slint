@@ -1,0 +1,39 @@
+import { Palette } from "../theme.slint";
+
+export component AnimatedProgressBar inherits Rectangle {
+    in property <float> value;
+    in property <bool> active: true;
+
+    height: 14px;
+    border-radius: 7px;
+    background: Palette.surface;
+    border-width: 1px;
+    border-color: Palette.border;
+    clip: true;
+
+    property <float> display-value: 0.0;
+    changed value => {
+        if (root.display-value - root.value) > 0.4 {
+            root.display-value = root.value;
+        }
+    }
+
+    Timer {
+        interval: 16ms;
+        running: true;
+        triggered => {
+            root.display-value += (root.value - root.display-value) * 0.25;
+            if (root.value - root.display-value) < 0.0008 && (root.value - root.display-value) > -0.0008 {
+                root.display-value = root.value;
+            }
+        }
+    }
+
+    Rectangle {
+        x: 0;
+        width: parent.width * root.display-value;
+        height: parent.height;
+        border-radius: 7px;
+        background: @linear-gradient(90deg, Palette.accent 0%, #f5d38a 100%);
+    }
+}

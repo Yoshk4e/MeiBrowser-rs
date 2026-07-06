@@ -1,29 +1,30 @@
 [workspace]
-members = ["proto","core"]
 resolver = "2"
+members = ["core", "proto"]
 
 [workspace.package]
 version = "0.1.0"
-
 
 [workspace.dependencies]
 anyhow = "1.0"
 eframe = "0.25.0"
 egui = "0.25.0"
+image = { version = "0.25", default-features = false, features = ["png"] }
 md5 = "0.8.0"
+mei-browser = { path = "core" }
+mei-proto = { path = "proto" }
 prost = "0.12.1"
+rayon = "1.8.0"  # for parallel downloads
 reqwest = { version = "0.11.24", features = ["json", "stream"] }
 rfd = "0.14.1"
+semver = "1.0.22"  # for version parsing
 serde_json = "1.0.113"
+slint = "1.17.0"
 tokio = { version = "1.36.0", features = ["full"] }
 zstd = "0.13.0"
-rayon = "1.8.0" # for parallel downloads
-semver = "1.0.22" # for version parsing
-mei-proto = { path = "proto" }
-mei-browser = { path = "core"}
 
 [profile.release]
-strip = true      # Automatically strip symbols from the binary.
-lto = true        # Link-time optimization.
-opt-level = 3     # Optimize for speed.
-codegen-units = 1 # Maximum size reduction optimizations.
+opt-level = 3  # Optimize for speed.
+strip = true  # Automatically strip symbols from the binary.
+lto = true  # Link-time optimization.
+codegen-units = 1  # Maximum size reduction optimizations.

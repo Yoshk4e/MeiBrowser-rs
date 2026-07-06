@@ -1,0 +1,91 @@
+import { Palette } from "../theme.slint";
+import { IconFolder, IconDownload } from "../icons.slint";
+
+export component PrimaryButton inherits Rectangle {
+    in property <string> text;
+    in property <bool> enabled: true;
+    callback clicked();
+
+    height: 44px;
+    border-radius: Palette.radius-md;
+    background: !enabled ? #2a2f3a : touch.pressed ? Palette.accent-pressed : touch.has-hover ? Palette.accent-hover : Palette.accent;
+
+    drop-shadow-color: enabled ? #e8ac3d33 : transparent;
+    drop-shadow-blur: touch.has-hover ? 14px : 8px;
+    drop-shadow-offset-y: 2px;
+
+    animate background, drop-shadow-blur {
+        duration: 140ms;
+        easing: ease-out;
+    }
+
+    Text {
+        text: root.text;
+        color: !root.enabled ? Palette.text-faint : Palette.on-accent;
+        font-weight: 700;
+        font-size: 14px;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.clicked();
+        }
+    }
+
+    // subtle press animation
+    y: touch.pressed ? 1px : 0px;
+    animate y {
+        duration: 100ms;
+        easing: ease-out;
+    }
+}
+
+export component SecondaryButton inherits Rectangle {
+    in property <string> text;
+    in property <string> icon: ""; // "" | "folder" | "download"
+    in property <bool> enabled: true;
+    callback clicked();
+
+    height: 40px;
+    border-radius: Palette.radius-md;
+    background: !enabled ? Palette.surface-raised : touch.has-hover ? Palette.surface-hover : Palette.surface-raised;
+    border-width: 1px;
+    border-color: !enabled ? Palette.border : touch.has-hover ? Palette.border-hover : Palette.border;
+    opacity: enabled ? 1.0 : 0.5;
+    animate background, border-color, opacity {
+        duration: 140ms;
+        easing: ease-out;
+    }
+
+    HorizontalLayout {
+        alignment: center;
+        spacing: 6px;
+
+        if root.icon == "folder": IconFolder {
+            size: 14px;
+            color: Palette.text-secondary;
+        }
+        if root.icon == "download": IconDownload {
+            size: 14px;
+            color: Palette.text-secondary;
+        }
+
+        Text {
+            text: root.text;
+            color: Palette.text-secondary;
+            font-size: 13px;
+            font-weight: 600;
+            vertical-alignment: center;
+        }
+    }
+
+    touch := TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.clicked();
+        }
+    }
+}

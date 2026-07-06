@@ -1,0 +1,70 @@
+import { Palette } from "../theme.slint";
+import { AppState, Backend } from "../state.slint";
+import { ModeCard } from "../components/cards.slint";
+
+export component HomePage inherits Rectangle {
+    VerticalLayout {
+        padding: 28px;
+        spacing: 20px;
+
+        Text {
+            text: "MeiBrowser";
+            font-size: 30px;
+            font-weight: 900;
+            color: Palette.text-primary;
+        }
+
+        Text {
+            text: "Download and manage HoYoverse game resources";
+            font-size: 13px;
+            color: Palette.text-muted;
+        }
+
+        HorizontalLayout {
+            spacing: 16px;
+            ModeCard {
+                icon: "bolt";
+                title: "Sophon Mode";
+                subtitle: "Incremental updates with chunk diffing. Fastest way to grab the latest build.";
+                clicked => {
+                    Backend.select-mode("sophon");
+                }
+            }
+
+            ModeCard {
+                icon: "box";
+                title: "Legacy Mode";
+                subtitle: "Scattered files and full ZIP packages from the classic dispatch API.";
+                clicked => {
+                    Backend.select-mode("legacy");
+                }
+            }
+
+            ModeCard {
+                icon: "key";
+                title: "SToken Build";
+                subtitle: "Load pre-release or special build data from a JSON file.";
+                clicked => {
+                    Backend.select-mode("stoken");
+                }
+            }
+        }
+
+        if AppState.error-text != "": Rectangle {
+            height: 40px;
+            border-radius: Palette.radius-sm;
+            background: Palette.danger-bg;
+            border-width: 1px;
+            border-color: Palette.danger-border;
+            Text {
+                text: AppState.error-text;
+                color: Palette.danger-text;
+                font-size: 12px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+            }
+        }
+
+        Rectangle { } // spacer
+    }
+}

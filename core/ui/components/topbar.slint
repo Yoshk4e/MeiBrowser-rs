@@ -1,0 +1,53 @@
+import { Palette } from "../theme.slint";
+import { IconArrowLeft } from "../icons.slint";
+
+export component TopBar inherits Rectangle {
+    in property <string> title;
+    in property <bool> show-back: false;
+    callback back();
+    height: 60px;
+    background: Palette.surface-raised;
+
+    HorizontalLayout {
+        padding-left: Palette.space-md;
+        padding-right: Palette.space-md;
+        spacing: Palette.space-sm;
+        alignment: start;
+        if root.show-back: Rectangle {
+            width: 36px;
+            height: 36px;
+            border-radius: Palette.radius-sm;
+            background: back-touch.has-hover ? Palette.surface-hover : transparent;
+            animate background { duration: 120ms; }
+            y: (parent.height - self.height) / 2;
+
+            IconArrowLeft {
+                size: 18px;
+                color: Palette.text-primary;
+                x: (parent.width - self.width) / 2;
+                y: (parent.height - self.height) / 2;
+            }
+
+            back-touch := TouchArea {
+                clicked => {
+                    root.back();
+                }
+            }
+        }
+        Text {
+            text: root.title;
+            color: Palette.text-primary;
+            font-size: 18px;
+            font-weight: 800;
+            vertical-alignment: center;
+        }
+    }
+
+    // Slint has no per-side border shorthand, so we fake the bottom divider with its own rect
+    Rectangle {
+        y: parent.height - self.height;
+        width: 100%;
+        height: 1px;
+        background: Palette.border;
+    }
+}

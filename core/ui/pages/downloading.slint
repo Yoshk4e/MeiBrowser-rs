@@ -1,0 +1,82 @@
+import { Palette } from "../theme.slint";
+import { AppState, Backend } from "../state.slint";
+import { AnimatedProgressBar } from "../components/progress-bar.slint";
+import { SecondaryButton } from "../components/buttons.slint";
+
+export component ProgressPage inherits Rectangle {
+    VerticalLayout {
+        padding: 28px;
+        spacing: 22px;
+        alignment: center;
+
+        Text {
+            text: "Downloading...";
+            font-size: 22px;
+            font-weight: 800;
+            color: Palette.text-primary;
+            horizontal-alignment: center;
+        }
+
+        AnimatedProgressBar {
+            value: AppState.progress;
+            active: AppState.is-downloading;
+        }
+
+        Text {
+            text: Math.round(AppState.progress * 1000) / 10 + "%";
+            font-size: 34px;
+            font-weight: 900;
+            color: Palette.accent;
+            horizontal-alignment: center;
+            animate color { duration: 200ms; }
+        }
+
+        HorizontalLayout {
+            alignment: center;
+            spacing: 30px;
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+                Text {
+                    text: "Downloaded";
+                    color: Palette.text-muted;
+                    font-size: 11px;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    text: AppState.downloaded-text + " / " + AppState.total-text;
+                    color: Palette.text-primary;
+                    font-size: 13px;
+                    horizontal-alignment: center;
+                }
+            }
+
+            VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+                Text {
+                    text: "Speed";
+                    color: Palette.text-muted;
+                    font-size: 11px;
+                    horizontal-alignment: center;
+                }
+
+                Text {
+                    text: AppState.speed-text;
+                    color: Palette.text-primary;
+                    font-size: 13px;
+                    horizontal-alignment: center;
+                }
+            }
+        }
+
+        SecondaryButton {
+            width: 140px;
+            text: "Cancel";
+            clicked => {
+                Backend.cancel-download();
+            }
+        }
+    }
+}
