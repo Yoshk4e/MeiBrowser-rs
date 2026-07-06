@@ -7,8 +7,6 @@ version = "0.1.0"
 
 [workspace.dependencies]
 anyhow = "1.0"
-eframe = "0.25.0"
-egui = "0.25.0"
 image = { version = "0.25", default-features = false, features = ["png"] }
 md5 = "0.8.0"
 mei-browser = { path = "core" }
