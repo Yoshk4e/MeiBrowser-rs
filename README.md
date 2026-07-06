@@ -1,8 +1,8 @@
 # MeiBrowser-rs
 
-Rust CLI tool for downloading and handling game resources for miHoYo/HoYoverse games. (GUI Soon)
+Rust tool for downloading and handling game resources for miHoYo/HoYoverse games. Ships as both a CLI and a desktop GUI, cross-platform.
 
-P.S. - This is just a rewrite of the original C# [tool](https://github.com/Escartem/MeiBrowser) to make it cross-platform not windows specific, just make sure to star his repo
+P.S. - This is a rewrite of the original C# [tool](https://github.com/Escartem/MeiBrowser) to make it cross-platform, not windows specific, make sure to star his repo.
 
 ## Features
 
@@ -12,13 +12,24 @@ P.S. - This is just a rewrite of the original C# [tool](https://github.com/Escar
 
 * **Differential Updates**: Compute and download only those files which have been modified from one version to another.
 
-* **Multi-Game Support**: Genshin Impact, Honkai: Star Rail, Zenless
+* **Multi-Game Support**: Genshin Impact, Honkai: Star Rail, Zenless Zone Zero
 
 * **Multi-Region**: Worldwide (OS) and China (CN) regions supported
 
 * **SToken Builds**: Loads pre-release and special build data
 
 * **Selective Downloads**: Interactive file browser to choose specific assets
+
+* **GUI**: Full desktop interface alongside the CLI
+
+
+## Screenshots
+
+| | |
+|---|---|
+| ![Mode select](assets/mode.png) | ![Game select](assets/game-select.png) |
+| ![Package selection](assets/packages.png) | ![File browser](assets/file-browser.png) |
+| ![Downloading](assets/downloading.png) | ![Complete](assets/complete.png) |
 
 ## Building
 
@@ -32,9 +43,25 @@ cd MeiBrowser-rs
 cargo build --release
 ```
 
-The binary will be at: `target/release/mei-browser`
+This builds both binaries:
 
-## Usage
+* CLI: `target/release/mei-browser`
+* GUI: `target/release/mei-browser-gui`
+
+To build just one of them:
+
+```bash
+cargo build --release --bin mei-browser       # CLI only
+cargo build --release --bin mei-browser-gui   # GUI only
+```
+
+## GUI Usage
+
+```bash
+./mei-browser-gui
+```
+
+## CLI Usage
 
 ```bash
 ./mei-browser
