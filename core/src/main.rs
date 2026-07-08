@@ -1,5 +1,5 @@
 use anyhow::Result;
-use mei_browser::{DispatchClient, Downloader, FileTree, SophonClient, format_size};
+use mei_browser::{DispatchClient, Downloader, FileTree, PauseState, SophonClient, format_size};
 use mei_proto::*;
 use std::fs;
 use std::io::{self, Write};
@@ -497,34 +497,90 @@ async fn proceed_with_download(
         return Ok(());
     }
 
-    println!("\nStarting download...\n");
+    println!("\nStarting download...");
+    println!("(While downloading: type 'p' + Enter to pause/resume, 'c' + Enter to cancel)\n");
+
     let downloader = Downloader::new();
+    let pause_state = PauseState::new();
 
     let total = Arc::new(std::sync::Mutex::new(0u64));
     let total_size_u64 = download_size as u64;
 
-    downloader
-        .download_files(
-            selected_assets,
-            &download_url,
-            &save_path,
-            Some(Box::new(move |downloaded| {
-                let mut t = total.lock().unwrap();
-                *t = downloaded;
-                let percent = (downloaded as f64 / total_size_u64 as f64) * 100.0;
-                print!(
-                    "\rProgress: [{:>5.1}%] {} / {}   ",
-                    percent,
-                    format_size(downloaded),
-                    format_size(total_size_u64)
-                );
-                io::stdout().flush().ok();
-            })),
-        )
-        .await?;
+    let download_pause = pause_state.clone();
+    let download_url_owned = download_url.clone();
+    let save_path_owned = save_path.clone();
 
-    println!("\n\nDownload complete!");
-    println!("Files saved to: {}", save_path);
+    let download_task = tokio::spawn(async move {
+        downloader
+            .download_files(
+                selected_assets,
+                &download_url_owned,
+                &save_path_owned,
+                Some(Box::new(move |downloaded| {
+                    let mut t = total.lock().unwrap();
+                    *t = downloaded;
+                    let percent = (downloaded as f64 / total_size_u64 as f64) * 100.0;
+                    print!(
+                        "\rProgress: [{:>5.1}%] {} / {}   ",
+                        percent,
+                        format_size(downloaded),
+                        format_size(total_size_u64)
+                    );
+                    io::stdout().flush().ok();
+                })),
+                download_pause,
+            )
+            .await
+    });
+
+    // Listen for pause/resume/cancel commands on stdin without blocking
+    // the download itself.
+    let input_pause = pause_state.clone();
+    let input_task = tokio::spawn(async move {
+        use tokio::io::{AsyncBufReadExt, BufReader};
+        let stdin = tokio::io::stdin();
+        let mut lines = BufReader::new(stdin).lines();
+        while let Ok(Some(line)) = lines.next_line().await {
+            match line.trim() {
+                "p" => {
+                    if input_pause.toggle() {
+                        println!(
+                            "\n[Paused] Downloaded files are kept; type 'p' + Enter to resume."
+                        );
+                    } else {
+                        println!("\n[Resumed]");
+                    }
+                }
+                "c" => {
+                    println!("\nCancelling...");
+                    input_pause.cancel();
+                    break;
+                }
+                _ => {}
+            }
+        }
+    });
+
+    let result = download_task.await?;
+    input_task.abort();
+
+    match result {
+        Ok(()) => {
+            println!("\n\nDownload complete!");
+            println!("Files saved to: {}", save_path);
+        }
+        Err(e) => {
+            if pause_state.is_cancelled() {
+                println!(
+                    "\n\nDownload paused/cancelled. Files downloaded so far were kept in: {}",
+                    save_path
+                );
+                println!("Run the same download again to resume where it left off.");
+            } else {
+                return Err(e);
+            }
+        }
+    }
 
     Ok(())
 }

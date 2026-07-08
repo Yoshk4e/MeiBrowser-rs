@@ -1,3 +1,4 @@
+use crate::pause::PauseState;
 use crate::utils::get_md5;
 use anyhow::Result;
 use futures_util::stream::StreamExt;
@@ -28,8 +29,9 @@ impl Downloader {
         download_url: &str,
         save_path: &str,
         progress_callback: Option<Box<dyn Fn(u64) + Send + Sync>>,
+        pause: PauseState,
     ) -> Result<()> {
-        self.download_files_inner(assets, download_url, save_path, progress_callback, 0)
+        self.download_files_inner(assets, download_url, save_path, progress_callback, pause, 0)
             .await
     }
 
@@ -39,19 +41,36 @@ impl Downloader {
         download_url: &str,
         save_path: &str,
         progress_callback: Option<Box<dyn Fn(u64) + Send + Sync>>,
+        pause: PauseState,
         depth: u32,
     ) -> Result<()> {
         println!("Start download..");
+
+        if pause.is_cancelled() {
+            anyhow::bail!("Download cancelled by user");
+        }
 
         let downloaded = Arc::new(Mutex::new(0u64));
         let progress_callback = Arc::new(progress_callback);
         let failed: Arc<Mutex<Vec<SophonManifestAssetProperty>>> = Arc::new(Mutex::new(Vec::new()));
 
         for asset in &assets {
+            if pause.is_cancelled() {
+                anyhow::bail!("Download cancelled by user");
+            }
+
+            // Checkpoint: park here between files while paused, without
+            // aborting the task or losing any bytes already committed.
+            pause.wait_if_paused().await;
+
+            if pause.is_cancelled() {
+                anyhow::bail!("Download cancelled by user");
+            }
+
             let mut retries = 3;
             let mut ok = false;
 
-            while retries > 0 && !ok {
+            while retries > 0 && !ok && !pause.is_cancelled() {
                 let dl = downloaded.clone();
                 let cb = progress_callback.clone();
                 let committed = *dl.lock().unwrap();
@@ -59,7 +78,7 @@ impl Downloader {
                 let attempt_bytes_cb = attempt_bytes.clone();
 
                 let outcome = self
-                    .try_download_file(asset, download_url, save_path, move |size| {
+                    .try_download_file(asset, download_url, save_path, &pause, move |size| {
                         let mut a = attempt_bytes_cb.lock().unwrap();
                         *a += size;
                         if let Some(ref callback) = *cb {
@@ -88,6 +107,9 @@ impl Downloader {
                         }
                     }
                     Err(e) => {
+                        if pause.is_cancelled() {
+                            break;
+                        }
                         println!(
                             "Download failed for {}: {}, retrying...",
                             asset.asset_name, e
@@ -97,10 +119,14 @@ impl Downloader {
 
                 if !ok {
                     retries -= 1;
-                    if retries > 0 {
+                    if retries > 0 && !pause.is_cancelled() {
                         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
                     }
                 }
+            }
+
+            if pause.is_cancelled() {
+                anyhow::bail!("Download cancelled by user");
             }
 
             if !ok {
@@ -114,10 +140,18 @@ impl Downloader {
             println!("Rechecking {} failed files..", failed_assets.len());
 
             for asset in &failed_assets {
+                if pause.is_cancelled() {
+                    anyhow::bail!("Download cancelled by user");
+                }
+                pause.wait_if_paused().await;
+                if pause.is_cancelled() {
+                    anyhow::bail!("Download cancelled by user");
+                }
+
                 let mut retries = 3;
                 let mut ok = false;
 
-                while retries > 0 && !ok {
+                while retries > 0 && !ok && !pause.is_cancelled() {
                     let dl = downloaded.clone();
                     let cb = progress_callback.clone();
                     let committed = *dl.lock().unwrap();
@@ -125,7 +159,7 @@ impl Downloader {
                     let attempt_bytes_cb = attempt_bytes.clone();
 
                     let outcome = self
-                        .try_download_file(asset, download_url, save_path, move |size| {
+                        .try_download_file(asset, download_url, save_path, &pause, move |size| {
                             let mut a = attempt_bytes_cb.lock().unwrap();
                             *a += size;
                             if let Some(ref callback) = *cb {
@@ -154,6 +188,10 @@ impl Downloader {
                     }
                 }
             }
+        }
+
+        if pause.is_cancelled() {
+            anyhow::bail!("Download cancelled by user");
         }
 
         println!("Verifying all file hashes..");
@@ -186,8 +224,15 @@ impl Downloader {
                 );
             }
             println!("Redownloading {} broken files..", broken.len());
-            Box::pin(self.download_files_inner(broken, download_url, save_path, None, depth + 1))
-                .await?;
+            Box::pin(self.download_files_inner(
+                broken,
+                download_url,
+                save_path,
+                None,
+                pause.clone(),
+                depth + 1,
+            ))
+            .await?;
         }
 
         println!("Download complete!");
@@ -199,12 +244,17 @@ impl Downloader {
         asset: &SophonManifestAssetProperty,
         download_url: &str,
         save_path: &str,
+        pause: &PauseState,
         mut on_chunk_done: F,
     ) -> Result<()>
     where
         F: FnMut(u64),
     {
         println!("Download file {}", asset.asset_name);
+
+        if pause.is_cancelled() {
+            anyhow::bail!("Download cancelled by user");
+        }
 
         let normalized = asset.asset_name.replace('/', std::path::MAIN_SEPARATOR_STR);
         let file_path = Path::new(save_path).join(&normalized);
@@ -242,6 +292,19 @@ impl Downloader {
             let mut downloaded = 0u64;
 
             while let Some(chunk) = stream.next().await {
+                if pause.is_cancelled() {
+                    anyhow::bail!("Download cancelled by user");
+                }
+                // Checkpoint: hold off writing further data while paused.
+                // Progress already flushed to disk is left intact, so
+                // resuming (or even restarting the whole run) will pick
+                // this file back up rather than redownloading it fully,
+                // once combined with the whole-file hash check above.
+                pause.wait_if_paused().await;
+                if pause.is_cancelled() {
+                    anyhow::bail!("Download cancelled by user");
+                }
+
                 let chunk = chunk?;
                 file.write_all(&chunk)?;
                 downloaded += chunk.len() as u64;
@@ -267,6 +330,22 @@ impl Downloader {
             }
 
             for chunk in &asset.asset_chunks {
+                if pause.is_cancelled() {
+                    anyhow::bail!("Download cancelled by user");
+                }
+
+                // Checkpoint: this is the main pause granularity for
+                // Sophon mode. Each chunk that is already correctly on
+                // disk is skipped below regardless of whether we were
+                // ever paused, so a pause/resume cycle (or a full
+                // restart) never re-downloads chunks that already
+                // landed successfully.
+                pause.wait_if_paused().await;
+
+                if pause.is_cancelled() {
+                    anyhow::bail!("Download cancelled by user");
+                }
+
                 file.seek(SeekFrom::Start(chunk.chunk_on_file_offset as u64))?;
 
                 let mut existing = vec![0u8; chunk.chunk_size_decompressed as usize];

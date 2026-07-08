@@ -40,6 +40,7 @@ export global AppState {
     in-out property <string> total-text: "0 B";
     in-out property <string> speed-text: "";
     in-out property <bool> is-downloading: false;
+    in-out property <bool> is-paused: false;
     in-out property <bool> download-complete: false;
 
     in-out property <bool> is-loading: false;
@@ -78,6 +79,7 @@ export global Backend {
     callback browse-save-path();
     callback set-save-path(string);
     callback start-download();
+    callback toggle-pause-download();
     callback cancel-download();
     callback download-more();
     callback quit();

@@ -1,4 +1,5 @@
 use crate::FileTree;
+use crate::pause::PauseState;
 use mei_proto::SophonManifestAssetProperty;
 use std::collections::{HashMap, HashSet};
 use std::sync::{Arc, Mutex};
@@ -72,6 +73,7 @@ pub(crate) struct AppData {
     // summary / download
     pub(crate) save_path: String,
     pub(crate) download_handle: Option<tokio::task::AbortHandle>,
+    pub(crate) pause_state: Option<PauseState>,
 }
 
 impl Default for AppData {
@@ -102,6 +104,7 @@ impl Default for AppData {
             selected_size: 0,
             save_path: "./download".to_string(),
             download_handle: None,
+            pause_state: None,
         }
     }
 }

@@ -10,11 +10,12 @@ export component ProgressPage inherits Rectangle {
         alignment: center;
 
         Text {
-            text: "Downloading...";
+            text: AppState.is-paused ? "Paused" : "Downloading...";
             font-size: 22px;
             font-weight: 800;
-            color: Palette.text-primary;
+            color: AppState.is-paused ? Palette.text-muted : Palette.text-primary;
             horizontal-alignment: center;
+            animate color { duration: 140ms; }
         }
 
         AnimatedProgressBar {
@@ -71,11 +72,24 @@ export component ProgressPage inherits Rectangle {
             }
         }
 
-        SecondaryButton {
-            width: 140px;
-            text: "Cancel";
-            clicked => {
-                Backend.cancel-download();
+        HorizontalLayout {
+            alignment: center;
+            spacing: 14px;
+
+            SecondaryButton {
+                width: 140px;
+                text: AppState.is-paused ? "Resume" : "Pause";
+                clicked => {
+                    Backend.toggle-pause-download();
+                }
+            }
+
+            SecondaryButton {
+                width: 140px;
+                text: "Cancel";
+                clicked => {
+                    Backend.cancel-download();
+                }
             }
         }
     }
